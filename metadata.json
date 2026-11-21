@@ -1,0 +1,6 @@
+{
+  "name": "Cafe Kitchen",
+  "description": "Real-time cafe kitchen order management, instant order alerts, POS billing, and streamlined customer payment processing synced with your cafe workflow.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

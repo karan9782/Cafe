@@ -1,0 +1,292 @@
+{
+  "entities": {
+    "CafeOrder": {
+      "title": "CafeOrder",
+      "description": "A cafe kitchen order ticket placed via QR/Barcode table scan or owner entry, with line items, preparation status, and Rupee billing/payment status. Clients must write FieldValue.serverTimestamp() for createdAt, updatedAt, and paidAt.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Authenticated cafe owner UID."
+        },
+        "orderNumber": {
+          "type": "string",
+          "description": "Short display ticket number such as #101."
+        },
+        "tableOrCustomer": {
+          "type": "string",
+          "description": "Table label, barcode tag, or customer name."
+        },
+        "orderType": {
+          "type": "string",
+          "enum": ["QR_SCAN", "DINE_IN", "TAKEAWAY", "ONLINE"],
+          "description": "Order placement channel (QR_SCAN for customer QR/barcode orders)."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["NEW", "PREPARING", "READY", "COMPLETED", "CANCELLED"],
+          "description": "Current kitchen workflow stage."
+        },
+        "paymentStatus": {
+          "type": "string",
+          "enum": ["UNPAID", "PAID"],
+          "description": "Settlement state of the customer bill."
+        },
+        "paymentMethod": {
+          "type": "string",
+          "enum": ["NONE", "CASH", "CARD", "UPI", "SPLIT"],
+          "description": "Method used to settle the bill."
+        },
+        "items": {
+          "type": "array",
+          "description": "Bounded list (1 to 25) of ordered line item maps."
+        },
+        "subtotalCents": {
+          "type": "integer",
+          "description": "Order subtotal in paise/minor currency units."
+        },
+        "taxCents": {
+          "type": "integer",
+          "description": "Calculated GST/tax in minor currency units."
+        },
+        "tipCents": {
+          "type": "integer",
+          "description": "Customer tip in minor currency units."
+        },
+        "discountCents": {
+          "type": "integer",
+          "description": "Applied discount in minor currency units."
+        },
+        "totalCents": {
+          "type": "integer",
+          "description": "Final payable total in minor currency units."
+        },
+        "notes": {
+          "type": "string",
+          "description": "Kitchen or customer preparation notes."
+        },
+        "paymentReference": {
+          "type": "string",
+          "description": "Payment receipt reference or tender note."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when order was created."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when order was last updated."
+        },
+        "paidAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Optional server timestamp recorded when payment completes."
+        }
+      },
+      "required": [
+        "userId",
+        "orderNumber",
+        "tableOrCustomer",
+        "orderType",
+        "status",
+        "paymentStatus",
+        "paymentMethod",
+        "items",
+        "subtotalCents",
+        "taxCents",
+        "tipCents",
+        "discountCents",
+        "totalCents",
+        "notes",
+        "paymentReference",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "MenuItem": {
+      "title": "MenuItem",
+      "description": "A cafe menu item priced in Rupees (paise). Clients must write FieldValue.serverTimestamp() for createdAt and updatedAt.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Authenticated cafe owner UID."
+        },
+        "name": {
+          "type": "string",
+          "description": "Menu item display name."
+        },
+        "category": {
+          "type": "string",
+          "enum": ["COFFEE", "BAKERY", "KITCHEN", "COLD_DRINKS"],
+          "description": "Menu category."
+        },
+        "priceCents": {
+          "type": "integer",
+          "description": "Unit price in minor currency units (paise)."
+        },
+        "prepMinutes": {
+          "type": "integer",
+          "description": "Estimated kitchen preparation duration in minutes."
+        },
+        "available": {
+          "type": "boolean",
+          "description": "Whether the item is currently in stock."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when item was created."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when item was updated."
+        }
+      },
+      "required": [
+        "userId",
+        "name",
+        "category",
+        "priceCents",
+        "prepMinutes",
+        "available",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "QrTableStation": {
+      "title": "QrTableStation",
+      "description": "A QR/Barcode ordering station linked to a cafe table or counter. Clients must write FieldValue.serverTimestamp() for createdAt and updatedAt.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Authenticated cafe owner UID."
+        },
+        "tableCode": {
+          "type": "string",
+          "description": "Short barcode/QR table identifier such as T1 or COUNTER."
+        },
+        "label": {
+          "type": "string",
+          "description": "Display label such as Table 1 or Window Counter."
+        },
+        "linkedUrl": {
+          "type": "string",
+          "description": "Customer QR ordering URL linked to this station."
+        },
+        "active": {
+          "type": "boolean",
+          "description": "Whether QR ordering is active for this station."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when station was created."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when station was updated."
+        }
+      },
+      "required": [
+        "userId",
+        "tableCode",
+        "label",
+        "linkedUrl",
+        "active",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "CafeSettings": {
+      "title": "CafeSettings",
+      "description": "Cafe configuration, website portal URL, GST rate, UPI merchant ID, and notification preferences. Clients must write FieldValue.serverTimestamp() for createdAt and updatedAt.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Authenticated cafe owner UID."
+        },
+        "cafeName": {
+          "type": "string",
+          "description": "Display name of the cafe."
+        },
+        "websiteUrl": {
+          "type": "string",
+          "description": "Companion web kitchen portal URL."
+        },
+        "upiId": {
+          "type": "string",
+          "description": "Merchant UPI VPA for QR payments."
+        },
+        "currencySymbol": {
+          "type": "string",
+          "enum": ["₹", "$", "€", "£"],
+          "description": "Currency symbol (defaults to ₹)."
+        },
+        "taxRatePercent": {
+          "type": "number",
+          "description": "GST/tax percentage applied to order subtotals."
+        },
+        "alertsEnabled": {
+          "type": "boolean",
+          "description": "Whether real-time order alerts are enabled."
+        },
+        "soundAlertsEnabled": {
+          "type": "boolean",
+          "description": "Whether alert chime sound plays on new orders."
+        },
+        "nextOrderCounter": {
+          "type": "integer",
+          "description": "Sequential order ticket counter."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when settings were initialized."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when settings were updated."
+        }
+      },
+      "required": [
+        "userId",
+        "cafeName",
+        "websiteUrl",
+        "upiId",
+        "currencySymbol",
+        "taxRatePercent",
+        "alertsEnabled",
+        "soundAlertsEnabled",
+        "nextOrderCounter",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/orders/{orderId}": {
+      "schema": { "$ref": "#/entities/CafeOrder" },
+      "description": "Real-time cafe QR and counter orders owned by the authenticated cafe owner."
+    },
+    "/users/{userId}/menu_items/{itemId}": {
+      "schema": { "$ref": "#/entities/MenuItem" },
+      "description": "Cafe menu catalog items priced in Rupees."
+    },
+    "/users/{userId}/qr_tables/{tableId}": {
+      "schema": { "$ref": "#/entities/QrTableStation" },
+      "description": "Linked QR and barcode table ordering stations."
+    },
+    "/users/{userId}/settings/{settingId}": {
+      "schema": { "$ref": "#/entities/CafeSettings" },
+      "description": "Cafe settings and portal configuration owned by the authenticated user."
+    }
+  }
+}

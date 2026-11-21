@@ -1,0 +1,16 @@
+<resources>
+    <string name="app_name">Cafe Kitchen</string>
+    <string name="notification_channel_orders_name">Real-Time QR Order Alerts</string>
+    <string name="notification_channel_orders_desc">Instant owner alerts whenever customers scan a table QR or barcode to place an order</string>
+    <string name="notification_channel_monitor_name">Background Order Listener</string>
+    <string name="notification_channel_monitor_desc">Keeps live QR order notifications active even when the app is closed</string>
+    <string name="auth_title">Cafe Kitchen</string>
+    <string name="auth_subtitle">Owner command center for QR &amp; barcode table orders, instant order alerts, and Rupee UPI billing.</string>
+    <string name="sign_in_with_google">Sign in with Google</string>
+    <string name="nav_orders">Orders</string>
+    <string name="nav_qr_link">QR &amp; Link</string>
+    <string name="nav_billing">Billing ₹</string>
+    <string name="nav_portal">Portal</string>
+    <string name="enable_order_alerts">Enable Order Alerts</string>
+    <string name="default_portal_url">https://gdp4fzx3f5u6.ample.run/kitchen#kitchen</string>
+</resources>

@@ -1,0 +1,244 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global safety net: deny everything by default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidOrder(data, userId) {
+      return data.userId is string && data.userId == userId &&
+             data.orderNumber is string && data.orderNumber.size() >= 1 && data.orderNumber.size() <= 20 &&
+             data.tableOrCustomer is string && data.tableOrCustomer.size() >= 1 && data.tableOrCustomer.size() <= 60 &&
+             data.orderType in ['QR_SCAN', 'DINE_IN', 'TAKEAWAY', 'ONLINE'] &&
+             data.status in ['NEW', 'PREPARING', 'READY', 'COMPLETED', 'CANCELLED'] &&
+             data.paymentStatus in ['UNPAID', 'PAID'] &&
+             data.paymentMethod in ['NONE', 'CASH', 'CARD', 'UPI', 'SPLIT'] &&
+             data.items is list && data.items.size() >= 1 && data.items.size() <= 25 &&
+             data.items[0] is map &&
+             data.subtotalCents is int && data.subtotalCents >= 0 && data.subtotalCents <= 10000000 &&
+             data.taxCents is int && data.taxCents >= 0 && data.taxCents <= 10000000 &&
+             data.tipCents is int && data.tipCents >= 0 && data.tipCents <= 10000000 &&
+             data.discountCents is int && data.discountCents >= 0 && data.discountCents <= 10000000 &&
+             data.totalCents is int && data.totalCents >= 0 && data.totalCents <= 10000000 &&
+             data.notes is string && data.notes.size() <= 300 &&
+             data.paymentReference is string && data.paymentReference.size() <= 100 &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time &&
+             (!('paidAt' in data) || (data.paidAt is timestamp && data.paidAt <= request.time));
+    }
+
+    function isValidMenuItem(data, userId) {
+      return data.userId is string && data.userId == userId &&
+             data.name is string && data.name.size() >= 1 && data.name.size() <= 60 &&
+             data.category in ['COFFEE', 'BAKERY', 'KITCHEN', 'COLD_DRINKS'] &&
+             data.priceCents is int && data.priceCents >= 0 && data.priceCents <= 1000000 &&
+             data.prepMinutes is int && data.prepMinutes >= 1 && data.prepMinutes <= 120 &&
+             data.available is bool &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidQrTableStation(data, userId) {
+      return data.userId is string && data.userId == userId &&
+             data.tableCode is string && data.tableCode.size() >= 1 && data.tableCode.size() <= 20 &&
+             data.label is string && data.label.size() >= 1 && data.label.size() <= 40 &&
+             data.linkedUrl is string && data.linkedUrl.size() >= 1 && data.linkedUrl.size() <= 300 &&
+             data.active is bool &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidCafeSettings(data, userId) {
+      return data.userId is string && data.userId == userId &&
+             data.cafeName is string && data.cafeName.size() >= 1 && data.cafeName.size() <= 60 &&
+             data.websiteUrl is string && data.websiteUrl.size() <= 300 &&
+             data.upiId is string && data.upiId.size() <= 100 &&
+             data.currencySymbol in ['₹', '$', '€', '£'] &&
+             (data.taxRatePercent is int || data.taxRatePercent is float) &&
+             data.taxRatePercent >= 0 && data.taxRatePercent <= 30 &&
+             data.alertsEnabled is bool &&
+             data.soundAlertsEnabled is bool &&
+             data.nextOrderCounter is int && data.nextOrderCounter >= 1 && data.nextOrderCounter <= 999999 &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isOrderTerminal() {
+      return existing().status == 'CANCELLED' ||
+             (existing().status == 'COMPLETED' && existing().paymentStatus == 'PAID');
+    }
+
+    function isValidStatusTransition(oldStatus, newStatus, paymentStatus) {
+      return (oldStatus == 'NEW' && newStatus in ['PREPARING', 'READY', 'COMPLETED', 'CANCELLED'] && (newStatus != 'CANCELLED' || paymentStatus == 'UNPAID')) ||
+             (oldStatus == 'PREPARING' && newStatus in ['READY', 'COMPLETED', 'CANCELLED'] && (newStatus != 'CANCELLED' || paymentStatus == 'UNPAID')) ||
+             (oldStatus == 'READY' && newStatus in ['COMPLETED', 'CANCELLED'] && (newStatus != 'CANCELLED' || paymentStatus == 'UNPAID'));
+    }
+
+    match /users/{userId}/orders/{orderId} {
+      allow list: if isOwner(userId);
+      allow get: if isOwner(userId) && isValidId(orderId);
+
+      allow create: if isOwner(userId) &&
+                       isValidId(orderId) &&
+                       incoming().keys().hasAll([
+                         'userId', 'orderNumber', 'tableOrCustomer', 'orderType', 'status',
+                         'paymentStatus', 'paymentMethod', 'items', 'subtotalCents',
+                         'taxCents', 'tipCents', 'discountCents', 'totalCents',
+                         'notes', 'paymentReference', 'createdAt', 'updatedAt'
+                       ]) &&
+                       incoming().keys().hasOnly([
+                         'userId', 'orderNumber', 'tableOrCustomer', 'orderType', 'status',
+                         'paymentStatus', 'paymentMethod', 'items', 'subtotalCents',
+                         'taxCents', 'tipCents', 'discountCents', 'totalCents',
+                         'notes', 'paymentReference', 'createdAt', 'updatedAt', 'paidAt'
+                       ]) &&
+                       incoming().status in ['NEW', 'PREPARING', 'READY', 'COMPLETED'] &&
+                       isValidOrder(incoming(), userId);
+
+      allow update: if isOwner(userId) &&
+                       isValidId(orderId) &&
+                       isValidOrder(incoming(), userId) &&
+                       incoming().userId == existing().userId &&
+                       incoming().orderNumber == existing().orderNumber &&
+                       incoming().createdAt == existing().createdAt &&
+                       !isOrderTerminal() && (
+                         (incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']) &&
+                          isValidStatusTransition(existing().status, incoming().status, existing().paymentStatus)) ||
+                         (existing().paymentStatus == 'UNPAID' &&
+                          existing().status != 'CANCELLED' &&
+                          incoming().paymentStatus == 'PAID' &&
+                          incoming().paymentMethod in ['CASH', 'CARD', 'UPI', 'SPLIT'] &&
+                          incoming().diff(existing()).affectedKeys().hasOnly([
+                            'paymentStatus', 'paymentMethod', 'tipCents', 'discountCents',
+                            'totalCents', 'paymentReference', 'paidAt', 'status', 'updatedAt'
+                          ])) ||
+                         (existing().paymentStatus == 'UNPAID' &&
+                          existing().status in ['NEW', 'PREPARING'] &&
+                          incoming().diff(existing()).affectedKeys().hasOnly([
+                            'tableOrCustomer', 'orderType', 'items', 'subtotalCents',
+                            'taxCents', 'discountCents', 'totalCents', 'notes', 'updatedAt'
+                          ]))
+                       );
+
+      allow delete: if isOwner(userId) &&
+                       isValidId(orderId) &&
+                       existing().paymentStatus == 'UNPAID';
+    }
+
+    match /users/{userId}/menu_items/{itemId} {
+      allow list: if isOwner(userId);
+      allow get: if isOwner(userId) && isValidId(itemId);
+
+      allow create: if isOwner(userId) &&
+                       isValidId(itemId) &&
+                       incoming().keys().hasAll([
+                         'userId', 'name', 'category', 'priceCents',
+                         'prepMinutes', 'available', 'createdAt', 'updatedAt'
+                       ]) &&
+                       incoming().keys().hasOnly([
+                         'userId', 'name', 'category', 'priceCents',
+                         'prepMinutes', 'available', 'createdAt', 'updatedAt'
+                       ]) &&
+                       isValidMenuItem(incoming(), userId);
+
+      allow update: if isOwner(userId) &&
+                       isValidId(itemId) &&
+                       isValidMenuItem(incoming(), userId) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt && (
+                         incoming().diff(existing()).affectedKeys().hasOnly(['available', 'updatedAt']) ||
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'name', 'category', 'priceCents', 'prepMinutes', 'available', 'updatedAt'
+                         ])
+                       );
+
+      allow delete: if isOwner(userId) && isValidId(itemId);
+    }
+
+    match /users/{userId}/qr_tables/{tableId} {
+      allow list: if isOwner(userId);
+      allow get: if isOwner(userId) && isValidId(tableId);
+
+      allow create: if isOwner(userId) &&
+                       isValidId(tableId) &&
+                       incoming().keys().hasAll([
+                         'userId', 'tableCode', 'label', 'linkedUrl',
+                         'active', 'createdAt', 'updatedAt'
+                       ]) &&
+                       incoming().keys().hasOnly([
+                         'userId', 'tableCode', 'label', 'linkedUrl',
+                         'active', 'createdAt', 'updatedAt'
+                       ]) &&
+                       isValidQrTableStation(incoming(), userId);
+
+      allow update: if isOwner(userId) &&
+                       isValidId(tableId) &&
+                       isValidQrTableStation(incoming(), userId) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt && (
+                         incoming().diff(existing()).affectedKeys().hasOnly(['active', 'updatedAt']) ||
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'tableCode', 'label', 'linkedUrl', 'active', 'updatedAt'
+                         ])
+                       );
+
+      allow delete: if isOwner(userId) && isValidId(tableId);
+    }
+
+    match /users/{userId}/settings/{settingId} {
+      allow list: if isOwner(userId);
+      allow get: if isOwner(userId) && settingId == 'profile';
+
+      allow create: if isOwner(userId) &&
+                       settingId == 'profile' &&
+                       incoming().keys().hasAll([
+                         'userId', 'cafeName', 'websiteUrl', 'upiId', 'currencySymbol',
+                         'taxRatePercent', 'alertsEnabled', 'soundAlertsEnabled',
+                         'nextOrderCounter', 'createdAt', 'updatedAt'
+                       ]) &&
+                       incoming().keys().hasOnly([
+                         'userId', 'cafeName', 'websiteUrl', 'upiId', 'currencySymbol',
+                         'taxRatePercent', 'alertsEnabled', 'soundAlertsEnabled',
+                         'nextOrderCounter', 'createdAt', 'updatedAt'
+                       ]) &&
+                       isValidCafeSettings(incoming(), userId);
+
+      allow update: if isOwner(userId) &&
+                       settingId == 'profile' &&
+                       isValidCafeSettings(incoming(), userId) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt && (
+                         incoming().diff(existing()).affectedKeys().hasOnly(['nextOrderCounter', 'updatedAt']) ||
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'cafeName', 'websiteUrl', 'upiId', 'currencySymbol',
+                           'taxRatePercent', 'alertsEnabled', 'soundAlertsEnabled',
+                           'nextOrderCounter', 'updatedAt'
+                         ])
+                       );
+
+      allow delete: if false;
+    }
+  }
+}
